@@ -1,0 +1,622 @@
+\documentclass[a4paper,12pt]{article}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english, russian]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{mathtools}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumerate}
+\usepackage{mdframed}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{caption}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, positioning}
+
+\geometry{top=2cm, bottom=2cm, left=2.5cm, right=2.5cm}
+
+
+\newmdenv[
+  linewidth=0.5pt,
+  topline=false,
+  bottomline=false,
+  rightline=false,
+  skipabove=5pt,
+  skipbelow=15pt,
+  leftmargin=0pt,
+  innerleftmargin=10pt
+]{task}
+
+\lstset{
+    language=C++,
+    basicstyle=\ttfamily\footnotesize,
+    keywordstyle=\bfseries\color{black},
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{black},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    tabsize=4,
+    escapeinside={(*@}{@*)}
+}
+
+\captionsetup[table]{labelformat=empty}
+
+
+\begin{document}
+    % -------------------------------- 1 --------------------------------
+    \begin{center}
+        {\large Московский физико-технический институт (ГУ)} \\
+        {\large Физтех-школа прикладной математики и информатики}
+    \end{center}
+    
+    \vspace{8cm}
+    
+    \begin{center}
+        {\Huge Дерево Штейнера} \\[0.3cm]
+        {\Large Алгоритм 2-аппроксимации и его анализ}
+    \end{center}
+    
+    \vspace{3cm}
+    
+    \begin{flushright}
+        {\large Андрющенко Соломон} \\
+        {\large Б05-222}
+    \end{flushright}
+    
+    \vfill
+    
+    \begin{center}
+        Сложность вычислений, осень 2024
+    \end{center}
+
+
+    \newpage
+    
+    % -------------------------------- 2 --------------------------------
+    \section*{Аннотация}
+    Задача минимального дерева Штейнера является одной из фундаментальных в области комбинаторной оптимизации и часто встречается в практических приложениях, таких как проектирование коммуникационных сетей и схемотехники. В данной работе автор исследует версию задачи дерева Штейнера на графах. Он доказывает \textbf{NP}-полноту данной задачи и предлагает алгоритм, который гарантирует приближённое решение с коэффициентом приближения 2.
+    
+    \vspace{1cm}
+    
+    \tableofcontents
+    
+    \newpage
+    
+    \section{Введение}
+    \subsection{Постановка задачи}
+
+    Дан неориентированный связный граф $G = (V, E)$, в нём выделено множество вершин $V_0$. Также имеются веса на рёбрах $w : E \to \mathbb{R}_+$. Требуется найти дерево $T$ минимального веса, покрывающее все вершины $V_0$.
+
+    \subsection{Постановка метрической версии задачи}
+
+    Дан неориентированный полный граф $G = (V, E)$, в нём выделено множество вершин $V_0$. Также имеются веса на рёбрах $w : E \to \mathbb{R}_+$ и выполнено неравенство треугольника: $\forall x, \, y, \, z: \; w(x, \, z) \, \leqslant \, w(x, \, y) \, + \, w(y, \, z)$. Требуется найти дерево $T$ минимального веса, покрывающее все вершины $V_0$.
+
+    \vfill \newpage
+
+    \section{NP-полнота}
+
+    Будем доказывать две сводимости: от задачи Chromatic Number к задаче Exact Cover и от задачи Exact Cover к Steiner Tree. \textbf{NP}-полнота задачи Chromatic Number предполагается известной. Автор нашёл доказательства в [\href{https://cgi.di.uoa.gr/~sgk/teaching/grad/handouts/karp.pdf}{1}] (стр. 15).\newline
+
+    \noindent\textbf{Задача Chromatic Number:}
+    \begin{task}
+        INPUT: \; Граф $G$, натуральное число $k$.\newline
+        PROPERTY: \; Существует фукнция $\phi: \, \mathbb{N} \to \mathbb{Z}_k$, такая что, если вершины с номерами $u$ и $v$ соединяются ребром, то $\phi(u) \neq \phi(v)$.
+    \end{task}
+
+    \noindent\textbf{Задача Exact Cover:}
+    \begin{task}
+        INPUT: \; Семейство $\{S_j\}$ подмножеств $\{1, \, \dots, \, n\}$.\newline
+        PROPERTY: \; Существует подсемейство $\{T_h\} \subseteq \{S_j\}$, такое что все $T_h$ не пересекаются и $\bigcup T_h = \bigcup S_j = \{1, \, \dots, \, n\}$.
+    \end{task}
+
+    \noindent\textbf{Задача Steiner Tree:}
+    \begin{task}
+        INPUT: \; Граф $G = \left(V, \, E\right)$, подмножество вершин $V_0 \subseteq V$, функция весов на рёбрах $w: E \to \mathbb{Z}_+ \cup \{0\}$, натуральное число $k$.\newline
+        PROPERTY: \; $G$ имеет поддерево, веса не более $k$, содержащее в себе все вершины $V_0$.
+    \end{task}
+
+    \noindent Заметим, что проверить ответ в задаче Steiner Tree можно за полиномиальное время. Действительно, нужно только проверить валидность поддерева и принадлежность всех вершин $V_0$ этому поддереву, а также что сумма на рёбрах не больше $k$. Всё это можно сделать за линейное время от размера $E$. Поэтому эта задача лежит в \textbf{NP}.
+    
+    \subsection{Chromatic Number \texorpdfstring{$\leqslant_p$}{<=p} Exact Cover}
+
+    Обозначим за $E(v)$ — множество инцидентных рёбер вершине $v$. Понятно, что вместо множества $M = \{1, \, \dots, \, n\}$ в задаче Exact Cover мы можем брать любое конечное множество, поэтому:
+    
+    \[
+        \begin{array}{l}
+            \begin{cases}
+                M \, = \, V \cup E \cup \{(v, e, i): \, v \in V, \, e \in E(v), \, i \in \{1, \dots, k\}\}\\
+                S_j \, = \,
+                \left[
+                    \begin{array}{l}
+                        \{v\} \cup \{(v, e, i): \, e \in E(v)\}, \, v, i \, \text{— fixed}.\\
+                        \{e\} \cup \{(v_1, e, i): \, i \neq t_1\} \cup \{(v_2, e, j): \, j \neq t_2\}, \, e, v_1, v_2, t_1, t_2 \, \text{— fixed},\\
+                        \hspace{2em}\text{where} \; v_1, \, v_2 \; \text{are incident to} \; e \; \text{and} \; t_1, t_2 \in \{1, \dots, k\}, t_1 \neq t_2.
+                    \end{array}
+                \right.
+            \end{cases}
+        \end{array}
+    \]
+
+    \noindent Пояснение: для каждой вершины мы фиксируем цвет (число $i \in \{1, \dots, k\}$) с помощью множеств $S_j$ первого типа, а с помощью множеств второго типа мы проверяем, что у соседних вершин не совпадает цвет.
+    
+    \subsection{Exact Cover \texorpdfstring{$\leqslant_p$}{<=p} Steiner Tree}
+
+    \vspace{1em}
+    
+    \[
+        \begin{array}{l}
+        \begin{cases}
+            V \, = \, \{n_0\} \cup \{S_j\} \cup \{1, \, \, \dots, \, n\}\\
+            V_0 \, = \, \{n_0\} \cup \{1, \, \dots, \, n\}\\
+            E \, = \, \{\left(n_0, \, S_j\right)\} \cup \{\left(S_j, \, u\right): \, u \in S_j\}\\
+            w\left((n_0, \, S_j)\right) \, = \, |S_j|\\
+            w\left((S_j, \, u)\right) \, = \, 0\\
+            k \, = \, n
+        \end{cases}
+        \end{array}
+    \]
+
+    \vspace{1em}
+
+    \noindent Пояснение: мы хотим чтобы семейство $\{S_j\}$ покрывало все вершины $\{1, \dots, n\}$, поэтому добавляем их всех в терминальные (в $V_0$). Также добавляем в терминальные фиктивную вершину $n_0$, которая является как бы связующим звеном между разными множествами $S_j$. Так как мы хотим брать только непересекающиеся $S_j$, то ставим $k = n$, и $w\left((n_0, S_j)\right) = |S_j|$.
+
+    \vspace{1em}
+
+    \noindent Замечание: если у нас найдётся такое поддерево веса не более $k = n$, то у него вес будет в точности равен $n$ и в $\{T_h\}$ будут входить множества $S_j$, соответствующие вершинам $S_j$ поддерева.
+
+    \vfill \newpage
+
+    \section{Алгоритм}
+
+    Автор нашёл алгоритмы сведения к метрической версии задачи и нахождения 2-приближения в [\href{https://www.youtube.com/watch?v=ZQbq3MAiy6Y}{2}].
+    
+    \subsection{Сведение к метрической версии}
+
+    Положим за $b(x, \, y)$ — вес кратчайшего (по сумме весов на рёбрах) пути от вершины $x$ до вершины $y$. Заметим, что выполняется неравенство треугольника: $\forall x, \, y, \, z: \; b(x, z) \, \leqslant \, b(x, \, y) \, + \, b(y, \, z)$, так как в правой части неравенства накладывается ограничение на кратчайший путь от $x$ до $z$ — он должен проходить через $y$. Заметим, что такое преобразование можно выполнить за полиномиальное время от количества вершин воспользовавшись алгоритмом Флойда (точное время работы: $\Theta(|V|^3)$). Теперь докажем, что полученная метрическая версия задачи эквивалентна исходной:
+
+    \vspace{1em}
+
+    \noindent Допустим мы нашли минимальное по весу поддерево $T$, содержащее $V_0$, в метрической версии задачи. Заметим, что мы можем в исходной задаче найти поддерево такого же веса или даже меньше: нужно для каждого ребра $(x, y)$ из $T$ брать кратчайший путь из $x$ в $y$ в исходном графе. Причём, заметим, что верно и обратное, а именно: если мы нашли минимальное по весу поддерево $T$, содержащее $V_0$, в исходной версии задачи, то если мы возьмём то же поддерево (со всеми его рёбрами) в метрической версии задачи, то суммарный вес дерева может только уменьшиться (так как вес каждого ребра заменён теперь на что-то меньшее, а именно на вес кратчайшего пути между парой вершин).
+
+    \vspace{1em}
+
+    \noindent Следовательно, веса минимальных поддеревьев из исходной и из метрической версий задач совпадают. Также, понятно, как имея решение одной задачи сразу получить решение другой (по алгоритму из доказательства выше).
+    
+    \subsection{2-приближение}
+
+    Приведём полиномиальный алгоритм, который для метрической версии задачи (а значит и для исходной) будет находить подходящее поддерево веса не более удвоенного оптимума (называется 2-аппроксимацией или 2-приближением).
+
+    \vspace{1em}
+
+    \noindent Допустим у нас есть оптимальное поддерево. Давайте раздвоим каждое ребро (создадим на этом месте два противоположных ориентированных ребра) этого поддерева. Следовательно, в этом новом ориентированном графе будет Эйлеров цикл. Далее, возьмём какую-нибудь вершину из $V_0$ (будем называть такие вершины терминальными) за <<первую>> и пойдём по этому циклу до следующей не посещённой терминальной вершины, постепенно стягивая рёбра графа (от такой операции суммарный вес полученного дерева не увеличится по неравенству треугольника). Так повторим для <<второй>> и <<третьей>> терминальной вершины и так далее, пока не исчерпаем все терминальные вершины. Заметим, что таким образом мы получили новое поддерево только на терминальных вершинах, у которого суммарный вес не более удвоенного веса исходного оптимального поддерева.
+
+    \vspace{1em}
+
+    \noindent Теперь воспользуемся тем, что наше новое поддерево использует только терминальные вершины. Задача сводится к нахождению минимального остова для графа, что можно сделать за $O\left(|E| \cdot log(|V|)\right)$ по времени с помощью алгоритма Прима, что, конечно, является полиномом от $|V|$.
+
+    \vspace{1em}
+
+    \begin{figure}[h!]
+        \centering
+        
+        % First Graph
+        \begin{minipage}{0.45\textwidth}
+            \centering
+            \begin{tikzpicture}[
+                nonterminal/.style={circle, draw=black, fill=white, minimum size=5pt, inner sep=0pt},
+                terminal/.style={rectangle, draw=black, fill=black, minimum size=5pt, inner sep=0pt},
+                edge/.style={draw=black, thick},
+                curved edge/.style={draw=black, line width=1.5pt, dashed, ->, bend left=40}
+            ]
+                % Define nodes
+                \node[nonterminal] (A) at (-1,-1) {};
+                \node[nonterminal] (B) at (1,1) {};
+                \node[nonterminal] (C) at (3,0) {};
+
+                \node[terminal] (T1) at (-2,-2) {};
+                \node[terminal] (T2) at (0,-2) {};
+                \node[terminal] (T3) at (0,0) {};
+                \node[terminal] (T4) at (0,2) {};
+                \node[terminal] (T5) at (2,1) {};
+                \node[terminal] (T6) at (3,2) {};
+                \node[terminal] (T7) at (4,1) {};
+                \node[terminal] (T8) at (4,-1) {};
+        
+                % Draw edges
+                \draw[edge] (T1) -- (A);
+                \draw[edge] (T2) -- (A);
+                \draw[edge] (T3) -- (A);
+                \draw[edge] (T3) -- (B);
+                \draw[edge] (T4) -- (B);
+                \draw[edge] (T5) -- (B);
+                \draw[edge] (T5) -- (T6);
+                \draw[edge] (T5) -- (C);
+                \draw[edge] (T7) -- (C);
+                \draw[edge] (T8) -- (C);
+        
+                % Curved dashed arrows
+                \draw[curved edge] (T1) to (A);
+                \draw[curved edge] (A) to (T3);
+                \draw[curved edge] (T3) to (B);
+                \draw[curved edge] (B) to (T4);
+                \draw[curved edge] (T4) to (B);
+                \draw[curved edge] (B) to (T5);
+                \draw[curved edge] (T5) to (T6);
+                \draw[curved edge] (T6) to (T5);
+                \draw[curved edge] (T5) to (C);
+                \draw[curved edge] (C) to (T7);
+                \draw[curved edge] (T7) to (C);
+                \draw[curved edge] (C) to (T8);
+                \draw[curved edge] (T8) to (C);
+                \draw[curved edge] (C) to (T5);
+                \draw[curved edge] (T5) to (B);
+                \draw[curved edge] (B) to (T3);
+                \draw[curved edge] (T3) to (A);
+                \draw[curved edge] (A) to (T2);
+                \draw[curved edge] (T2) to (A);
+                \draw[curved edge] (A) to (T1);
+            \end{tikzpicture}
+        \end{minipage}%
+        \hfill
+        % Second Graph
+        \begin{minipage}{0.45\textwidth}
+            \centering
+            \begin{tikzpicture}[
+                nonterminal/.style={circle, draw=black, fill=white, minimum size=5pt, inner sep=0pt},
+                terminal/.style={rectangle, draw=black, fill=black, minimum size=5pt, inner sep=0pt},
+                edge/.style={draw=black, thick},
+                curved edge/.style={draw=black, line width=1.5pt, dashed, ->, bend left=30}
+            ]
+                % Define nodes
+                \node[nonterminal] (A) at (-1,-1) {};
+                \node[nonterminal] (B) at (1,1) {};
+                \node[nonterminal] (C) at (3,0) {};
+
+                \node[terminal] (T1) at (-2,-2) {};
+                \node[terminal] (T2) at (0,-2) {};
+                \node[terminal] (T3) at (0,0) {};
+                \node[terminal] (T4) at (0,2) {};
+                \node[terminal] (T5) at (2,1) {};
+                \node[terminal] (T6) at (3,2) {};
+                \node[terminal] (T7) at (4,1) {};
+                \node[terminal] (T8) at (4,-1) {};
+        
+                % Draw edges
+                \draw[edge] (T1) -- (A);
+                \draw[edge] (T2) -- (A);
+                \draw[edge] (T3) -- (A);
+                \draw[edge] (T3) -- (B);
+                \draw[edge] (T4) -- (B);
+                \draw[edge] (T5) -- (B);
+                \draw[edge] (T5) -- (T6);
+                \draw[edge] (T5) -- (C);
+                \draw[edge] (T7) -- (C);
+                \draw[edge] (T8) -- (C);
+        
+                % Curved dashed arrows
+                \draw[curved edge] (T1) to (T3);
+                \draw[curved edge] (T3) to (T4);
+                \draw[curved edge] (T4) to (T5);
+                \draw[curved edge] (T5) to (T6);
+                \draw[curved edge] (T6) to (T7);
+                \draw[curved edge] (T7) to (T8);
+                \draw[curved edge] (T8) to (T2);
+            \end{tikzpicture}
+        \end{minipage}
+
+        % Legend at the bottom, centered between the graphs
+        \vspace{1em}
+
+        \begin{tikzpicture}[
+            nonterminal/.style={circle, draw=black, fill=white, minimum size=5pt, inner sep=0pt},
+            terminal/.style={rectangle, draw=black, fill=black, minimum size=5pt, inner sep=0pt}
+        ]
+
+            \node[terminal, label=right:$\in V_0$] at (0, 0) {};
+            \node[nonterminal, label=right:$\notin V_0$] at (1.7, 0) {};
+        \end{tikzpicture}
+    \end{figure}
+
+    \noindent Также приведём пример таких графов, где наш алгоритм даёт почти в $2$ раза больший ответ, чем оптимальный, тем самым показав, что наша оценка точная. Для этого нужно взять $|V_0| = |V| - 1$ и терминальные вершины образуют клику, где каждое ребро веса $2$. Осталась одна нетерминальная вершина, которую соединим со всеми терминальными вершинами, рёбрами веса $1$:
+
+    \vspace{1em}
+
+    \begin{figure}[h!]
+        \centering
+        
+        % First Graph
+        \begin{minipage}{0.45\textwidth}
+            \centering
+            \begin{tikzpicture}[
+                nonterminal/.style={circle, draw=black, fill=white, minimum size=5pt, inner sep=0pt},
+                terminal/.style={rectangle, draw=black, fill=black, minimum size=5pt, inner sep=0pt},
+                edge/.style={draw=black, thick},
+                curved left edge/.style={draw=black, line width=1.5pt, dashed, bend left=20},
+                curved right edge/.style={draw=black, line width=1.5pt, dashed, bend right=20}
+            ]
+                % Define nodes
+                \node[nonterminal] (A) at (1,3) {};
+
+                \node[terminal] (T1) at (-1,0) {};
+                \node[terminal] (T2) at (-2.5,-1) {};
+                \node[terminal] (T3) at (-2,-2) {};
+                \node[terminal] (T4) at (1,-3) {};
+                \node[terminal] (T5) at (2.5,-2) {};
+                \node[terminal] (T6) at (2,-1) {};
+        
+                % Draw edges
+                \draw[edge] (T1) -- (T2);
+                \draw[edge] (T1) -- (T3);
+                \draw[edge] (T1) -- (T4);
+                \draw[edge] (T1) -- (T5);
+                \draw[edge] (T1) -- node [sloped, above, pos=0.5] {2} (T6);
+                
+                \draw[edge] (T2) -- (T3);
+                \draw[edge] (T2) -- (T4);
+                \draw[edge] (T2) -- (T5);
+                \draw[edge] (T2) -- (T6);
+                
+                \draw[edge] (T3) -- node [sloped, below, pos=0.5] {2} (T4);
+                \draw[edge] (T3) -- (T5);
+                \draw[edge] (T3) -- (T6);
+
+                \draw[edge] (T4) -- node [sloped, below, pos=0.5] {2} (T5);
+                \draw[edge] (T4) -- (T6);
+
+                \draw[edge] (T5) -- (T6);
+        
+                % Curved dashed arrows
+                \draw[curved left edge] (T1) to (A);
+                \draw[curved left edge] (T2) to node [sloped, above, pos=0.5] {1} (A);
+                \draw[curved left edge] (T3) to (A);
+                \draw[curved right edge] (T6) to (A);
+                \draw[curved right edge] (T5) to node [sloped, above, pos=0.5] {1} (A);
+                \draw[curved right edge] (T4) to (A);
+            \end{tikzpicture}
+        \end{minipage}%
+
+        % Legend at the bottom, centered between the graphs
+        \vspace{1em}
+
+        \begin{tikzpicture}[
+            nonterminal/.style={circle, draw=black, fill=white, minimum size=5pt, inner sep=0pt},
+            terminal/.style={rectangle, draw=black, fill=black, minimum size=5pt, inner sep=0pt}
+        ]
+
+            \node[terminal, label=right:$\in V_0$] at (0, 0) {};
+            \node[nonterminal, label=right:$\notin V_0$] at (1.7, 0) {};
+        \end{tikzpicture}
+    \end{figure}
+
+    \noindent Тогда, преобразование графа к метрической версии его не изменит, следовательно, нам нужно найти минимальный остов на клике из терминальных вершин, где каждое ребро веса $2$. Это будет $2 \left(|V| - 2\right)$. С другой стороны, нетрудно понять, что оптимальное поддерево тут будет содержать единственную нетерминальную вершину и все рёбра из неё в терминальные. В таком случае суммарный вес будет $|V| - 1$. Получаем:
+    \begin{gather*}
+        \frac{2 \left(|V| - 2\right)}{|V| - 1} \, \to \, 2, \, |V| \to \infty
+    \end{gather*}
+    
+    \subsection{Реализация алгоритма}
+
+    Для проверки алгоритма $2$-аппроксимации автор реализовал алгоритм Dreyfus-Wagner, строящий оптимальное поддерево за $O\left(4^t \cdot |V|^2\right)$ (где $t$ — количество терминальных вершин), а также сформулировал оптимизационную задачу с помощью которой написал ещё один точный алгоритм построения дерева Штейнера на библиотеке `pyscipopt`.
+
+    \vspace{1em}
+
+    \noindent Для построенных алгоритмов написаны тесты, которые проверяют как общие, так и краевые случаи поставленной задачи, а также границы коэффициента аппроксимации.
+
+    \vspace{1em}
+
+    \noindent Посчитано, какую точность даёт построенный приближённый алгоритм, замерено время выполнения всех алгоритмов кроме оптимизационного (он, конечно, даёт всегда оптимальный ответ, но работает несопоставимо долго уже при $|V| \geqslant 20$). Построены соответствующие графики.
+
+    \vspace{1em}
+
+    \noindent Код на C++ получился достаточно большой (около $500$ строк), поэтому приведёна только главная часть:
+
+    \vspace{1em}
+
+    \begin{lstlisting}
+int main() {
+    ...
+
+    // reading input data
+    Graph graph;
+    graph.ReadFromList(std::cin);
+
+    // converting into metric task
+    MetricGraph metric_graph(graph);
+    metric_graph.Convert();
+
+    // finding minimum spanning tree
+    MST mst(metric_graph);
+    std::vector<Graph::Edge> metric_edges = mst.Find(terminals);
+
+    // expanding our solution from metric back to initial problem
+    std::vector<Graph::Edge> edges = ExpandEdgesFromMetricToInitial(
+        metric_graph, metric_edges
+    );
+
+    // printing the result edges in a subtree
+    for (const Graph::Edge& edge : edges) {
+        std::cout << edge.from + 1 << ' ' << edge.to + 1 << '\n';
+    }
+    
+    ...
+}
+(*@\href{https://github.com/strangecreator/steiner_tree}{ссылка на алгоритм [3]}@*)
+    \end{lstlisting}
+    
+    \subsection{Анализ работы}
+
+    \noindent Для сравнения алгоритмов автор решил взять графы $G(n, \, p)$, так как варьируя параметры $n$ и $p$ по сетке можно получить все возможные графы. Будем обозначать отношение количества терминальных вершин к размеру всего графа за \textit{terminal\_p} $ = \frac{|V_0|}{|V|}$.
+
+    \vspace{1em}
+
+    \noindent Оценка сверху на коэффициент приближения не нарушается. Более того, для сгенерированных входных данных приближённый алгоритм даёт приближение не хуже $\frac{4}{3}$. Также можно заметить, что при такой хорошей точности приближённого алгоритма он работает куда быстрее Dreyfus-Wagner. Это можно наблюдать уже при $n=30, \, \text{\textit{terminal\_p}} = 0.3$.
+
+    \vspace{1em}
+
+    \begin{table}[h!]
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Max Approximate Coefficient}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 1.0 & 1.0 & 1.0 & 1.0 & 1.219 \\
+                \textbf{0.3} & 1.0 & 1.0 & 1.0 & 1.0 & 1.250 \\
+                \textbf{0.7} & 1.0 & 1.0 & 1.0 & 1.0 & 1.333 \\
+                \textbf{0.9} & 1.0 & 1.0 & 1.0 & 1.0 & 1.250 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.1$}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Max Approximate Coefficient}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 1.0 & 1.000 & 1.200 & 1.235 & 1.229 \\
+                \textbf{0.3} & 1.0 & 1.231 & 1.231 & 1.267 & 1.179 \\
+                \textbf{0.7} & 1.0 & 1.250 & 1.250 & 1.222 & 1.273 \\
+                \textbf{0.9} & 1.0 & 1.167 & 1.286 & 1.200 & 1.250 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.3$}
+        \end{minipage}
+    \end{table}
+
+    \begin{table}[h!]
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Average Approximate Coefficient}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 1.0 & 1.0 & 1.0 & 1.0 & 1.034 \\
+                \textbf{0.3} & 1.0 & 1.0 & 1.0 & 1.0 & 1.042 \\
+                \textbf{0.7} & 1.0 & 1.0 & 1.0 & 1.0 & 1.042 \\
+                \textbf{0.9} & 1.0 & 1.0 & 1.0 & 1.0 & 1.051 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.1$}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Average Approximate Coefficient}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 1.0 & 1.000 & 1.045 & 1.053 & 1.050 \\
+                \textbf{0.3} & 1.0 & 1.015 & 1.040 & 1.047 & 1.055 \\
+                \textbf{0.7} & 1.0 & 1.027 & 1.038 & 1.043 & 1.058 \\
+                \textbf{0.9} & 1.0 & 1.017 & 1.050 & 1.042 & 1.056 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.3$}
+        \end{minipage}
+    \end{table}
+
+    \vspace{1em}
+
+    \begin{table}[h!]
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Average Time Complexity (ms)}
+            {\vspace{-0.5em}Dreyfus Wagner\par\vspace{1em}}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 0.01 & 0.05 & 0.01 & 0.05 & 0.86 \\
+                \textbf{0.3} & 0.02 & 0.00 & 0.01 & 0.17 & 0.55 \\
+                \textbf{0.7} & 0.01 & 0.01 & 0.01 & 0.17 & 0.62 \\
+                \textbf{0.9} & 0.02 & 0.06 & 0.02 & 0.14 & 0.55 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.1$}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Average Time Complexity (ms)}
+            {\vspace{-0.5em}Dreyfus Wagner\par\vspace{1em}}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 0.02 & 0.00 & 0.48 & 6.14 & 245.80 \\
+                \textbf{0.3} & 0.01 & 0.06 & 0.93 & 7.28 & 252.00 \\
+                \textbf{0.7} & 0.00 & 0.07 & 0.88 & 7.36 & 252.07 \\
+                \textbf{0.9} & 0.02 & 0.04 & 0.89 & 7.37 & 249.73 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.3$}
+        \end{minipage}
+    \end{table}
+
+    \begin{table}[h!]
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Average Time Complexity (ms)}
+            {\vspace{-0.5em}2-Approximation\par\vspace{1em}}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 0.01 & 0.03 & 0.02 & 0.02 & 0.07 \\
+                \textbf{0.3} & 0.03 & 0.03 & 0.01 & 0.02 & 0.04 \\
+                \textbf{0.7} & 0.04 & 0.00 & 0.01 & 0.11 & 0.03 \\
+                \textbf{0.9} & 0.00 & 0.03 & 0.01 & 0.05 & 0.04 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.1$}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.47\textwidth}
+            \centering
+            \caption*{Average Time Complexity (ms)}
+            {\vspace{-0.5em}2-Approximation\par\vspace{1em}}
+            \begin{tabular}{c|ccccc}
+                \toprule
+                \textbf{p\textbackslash n} & \textbf{5} & \textbf{10} & \textbf{15} & \textbf{20} & \textbf{30} \\
+                \midrule
+                \textbf{0.1} & 0.00 & 0.00 & 0.00 & 0.05 & 0.07 \\
+                \textbf{0.3} & 0.02 & 0.01 & 0.01 & 0.06 & 0.11 \\
+                \textbf{0.7} & 0.01 & 0.01 & 0.06 & 0.06 & 0.05 \\
+                \textbf{0.9} & 0.02 & 0.05 & 0.02 & 0.05 & 0.06 \\
+                \bottomrule
+            \end{tabular}
+            \caption*{\\\textit{terminal\_p} = $0.3$}
+        \end{minipage}
+    \end{table}
+
+    \vfill \newpage
+
+    \section{Вывод}
+
+    В исследовании была проанализирована одна из ключевых задач в области комбинаторной оптимизации – построение оптимального дерева Штейнера. Мы доказали сложность этой задачи, рассмотрели приближённый метод её решения, и даже получили верхнюю оценку его точности. Также мы провели сравнительный анализ времени работы различных алгоритмов на наборе случайных тестовых задач.
+
+    \section{Ссылки}
+
+    \begin{enumerate}
+        \item Karp, \textit{Reducibility Among Combinatorial problems}, 1972. \href{https://cgi.di.uoa.gr/~sgk/teaching/grad/handouts/karp.pdf}{Ссылка}
+        
+        \item Algorithms Lab, \textit{Approximations algorithms for the Steiner Tree Problem and the Traveling Salesperson Problem (TSP)}, 2023. \href{https://www.youtube.com/watch?v=ZQbq3MAiy6Y}{Ссылка}
+
+        \item Solomon Andryushenko, \textit{Steiner tree 2-approximation polynomial algorithm\\ implementation with tests}, 2024. \href{https://github.com/strangecreator/steiner_tree}{Ссылка}
+    \end{enumerate}
+
+    % -------------------------------- 3 --------------------------------
+
+\end{document}

@@ -1,80 +1,8 @@
 import pytest
-import subprocess
-from pathlib import Path
+import numpy as np
 
-import steiner_tree_exact
+from utils import *
 
-
-BASE_DIR = Path(__file__).parent.parent
-EXECUTABLE = str(BASE_DIR / "bin/steiner_tree_two_approximation")
-
-
-def convert_to_input(
-        number_of_vertices: int,
-        edges: list[tuple[int, int, int]],
-        terminals: list[int]
-    ):
-    edges_string = "\n".join(map(lambda x: ' '.join(map(str, x)), edges))
-    return f"list\n{number_of_vertices} {len(edges)}\n{edges_string}\n{len(terminals)}\n{' '.join(map(str, terminals))}"
-
-
-def parse_response(response: str):
-    lines = response.strip().split('\n')
-
-    if lines[0].strip() == "NO":
-        return (False, -1, [])
-    
-    try:
-        return (
-            True,
-            int(lines[1]),
-            list(map(lambda x: list(map(int, x.split())), lines[2:]))
-        )
-    except Exception as e:
-        raise Exception from e  # TODO
-
-
-def compute_2_approximation(
-        number_of_vertices: int,
-        edges: list[tuple[int, int, int]],
-        terminals: list[int]
-    ):
-    input_data = convert_to_input(number_of_vertices, edges, terminals)
-
-    process = subprocess.run(
-        [EXECUTABLE],
-        input=input_data,
-        text=True,
-        capture_output=True
-    )
-
-    if process.returncode != 0:
-        raise Exception(process.stderr)
-    else:
-        return parse_response(process.stdout)
-    
-
-def run_and_compare_results(
-        number_of_vertices: int,
-        edges: list[tuple[int, int, int]],
-        terminals: list[int]
-    ):
-    actual_solution = steiner_tree_exact.find_steiner_tree(
-        number_of_vertices,
-        edges,
-        terminals
-    )
-    approximate_solution = compute_2_approximation(
-        number_of_vertices,
-        edges,
-        terminals
-    )
-
-    assert actual_solution[0] == approximate_solution[0]
-
-    if actual_solution[0]:
-        assert actual_solution[1] <= approximate_solution[1] <= 2 * actual_solution[1], "Approximation algorithm is incorrect."
-    
 
 def test_simple_1():
     number_of_vertices = 5
@@ -87,7 +15,7 @@ def test_simple_1():
     ]
     terminals = [1, 3, 5]
 
-    run_and_compare_results(number_of_vertices, edges, terminals)
+    run_and_compare_results(number_of_vertices, edges, terminals, include_optimization_algorithm=True)
 
 
 def test_simple_2():
@@ -106,8 +34,38 @@ def test_simple_2():
     ]
     terminals = [1, 3, 4, 6, 7, 8, 10, 11]
 
-    run_and_compare_results(number_of_vertices, edges, terminals)
+    run_and_compare_results(number_of_vertices, edges, terminals, include_optimization_algorithm=True)
 
 
-def test_Gnp_graphs():
-    pass
+@pytest.mark.parametrize("n", [10])
+@pytest.mark.parametrize("edge_p", [0.1, 0.3, 0.7, 0.9])
+@pytest.mark.parametrize("terminal_p", [0.1, 0.3, 0.7, 0.9])
+def test_Gnp_graphs_with_optimization_algorithm(n: int, edge_p: float, terminal_p: float):
+    NUMBER_OF_ITERATIONS = 1
+    WEIGHTS_RANGE = (1, 10)
+
+    Gnp_graphs = generate_Gnp_weighted_graphs(n, edge_p, NUMBER_OF_ITERATIONS, WEIGHTS_RANGE)
+    terminals_boolean_array = generate_terminal_boolean_array(NUMBER_OF_ITERATIONS, n, terminal_p)
+
+    for i in range(NUMBER_OF_ITERATIONS):
+        edges = Gnp_graphs[i]
+        terminals = list(np.where(terminals_boolean_array[i])[0] + 1)
+
+        run_and_compare_results(n, edges, terminals, include_optimization_algorithm=True)
+
+
+@pytest.mark.parametrize("n", [15, 20])
+@pytest.mark.parametrize("edge_p", [0.1, 0.3, 0.4, 0.5, 0.7, 0.9, 1.0])
+@pytest.mark.parametrize("terminal_p", [0.1, 0.3])
+def test_Gnp_graphs(n: int, edge_p: float, terminal_p: float):
+    NUMBER_OF_ITERATIONS = 10
+    WEIGHTS_RANGE = (1, 5)
+
+    Gnp_graphs = generate_Gnp_weighted_graphs(n, edge_p, NUMBER_OF_ITERATIONS, WEIGHTS_RANGE)
+    terminals_boolean_array = generate_terminal_boolean_array(NUMBER_OF_ITERATIONS, n, terminal_p)
+
+    for i in range(NUMBER_OF_ITERATIONS):
+        edges = Gnp_graphs[i]
+        terminals = list(np.where(terminals_boolean_array[i])[0] + 1)
+
+        run_and_compare_results(n, edges, terminals, include_optimization_algorithm=False)

@@ -1,4 +1,9 @@
+from datetime import datetime
 from pyscipopt import Model, quicksum
+
+
+def get_current_timestamp():
+    return int(datetime.now().timestamp() * 1000)
 
 
 def find_steiner_tree(
@@ -7,10 +12,19 @@ def find_steiner_tree(
         terminals: list[int]
     ):
     number_of_terminals = len(terminals)
+
+    # checking for boundary cases
+    if number_of_terminals <= 1:
+        return (True, 0, []), (get_current_timestamp(), get_current_timestamp())
+    
+    if len(edges) == 0:
+        return (False, -1, []), (get_current_timestamp(), get_current_timestamp())
+    
     root = terminals[0]
 
     edges = list(map(lambda x: (min(x[0], x[1]), max(x[0], x[1]), x[2]), edges))
 
+    # building an adjacency list
     adjacency_list = {v: [] for v in range(1, number_of_vertices + 1)}
     for (u, v, w) in edges:
         adjacency_list[u].append(v)
@@ -22,6 +36,9 @@ def find_steiner_tree(
     # reducing verbosity
     model.setIntParam('display/verblevel', 0)
     model.setParam('display/freq', 0)
+
+
+    timestamp_start = get_current_timestamp()  # means the start of the main algorithm
 
 
     x, f = {}, {}
@@ -67,6 +84,8 @@ def find_steiner_tree(
     # optimizing
     model.optimize()
 
+    timestamp_end = get_current_timestamp()  # means the end of the main algorithm
+
     # retrieving the selected edges
     if model.getStatus() == "optimal":
         steiner_edges = []
@@ -78,9 +97,9 @@ def find_steiner_tree(
                 steiner_edges.append((u, v))
                 weight_of_the_tree += w
         
-        return True, weight_of_the_tree, steiner_edges
+        return (True, weight_of_the_tree, steiner_edges), (timestamp_start, timestamp_end)
     else:
-        return False, -1, []
+        return (False, -1, []), (timestamp_start, timestamp_end)
 
 
 if __name__ == "__main__":
@@ -94,7 +113,7 @@ if __name__ == "__main__":
     terminals = [1, 3, 5]
 
     # finding steiner tree
-    status, weight, steiner_tree_edges = find_steiner_tree(5, edges, terminals)
+    (status, weight, steiner_tree_edges), timestamps = find_steiner_tree(5, edges, terminals)
 
     # printing the result
     if status:
